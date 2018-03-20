@@ -32,21 +32,19 @@ RCT_REMAP_METHOD(getKeyAliases,
     NSMutableArray *aliases = [NSMutableArray array];
 
     // search for keys & return attributes
-    NSDictionary *query = [NSDictionary dictionaryWithObjectsAndKeys:
-                                  (__bridge id)kCFBooleanTrue, (__bridge id)kSecReturnAttributes,
-                                  (__bridge id)kSecMatchLimitAll, (__bridge id)kSecMatchLimit,
-                                  (__bridge id)kSecClassKey, (__bridge id)kSecClass,
-                                  nil];
+    NSDictionary *query = @{(id)kSecReturnAttributes    : @YES,
+                            (id)kSecMatchLimit          : (id)kSecMatchLimitAll,
+                            (id)kSecClass               : (id)kSecClassKey
+                            };
     CFTypeRef result = NULL;
     OSStatus rc = SecItemCopyMatching((__bridge CFDictionaryRef)query, &result);
 
     if (rc == errSecSuccess) {
         // enumerate results
         [(__bridge NSArray*)result enumerateObjectsUsingBlock:^(id  _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
-            char *cString = (char *)[[obj objectForKey:(__bridge id)kSecAttrLabel] bytes];
-            if (cString != NULL) {
-                NSString *aliasValue = [NSString stringWithUTF8String: cString];
-                [aliases addObject:aliasValue];
+            NSString *key = [obj objectForKey:(__bridge id)kSecAttrLabel];
+            if (key) {
+                [aliases addObject:key];
             }
         }];
 
@@ -63,13 +61,11 @@ RCT_REMAP_METHOD(containsKeyAlias,
                  containsKeyAlias:(NSString*)alias
                  withResolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject)
 {
-    NSDictionary *query = [NSDictionary dictionaryWithObjectsAndKeys:
-                           (__bridge id)kCFBooleanTrue, (__bridge id)kSecReturnAttributes,
-                           (__bridge id)kSecMatchLimitOne, (__bridge id)kSecMatchLimit,
-                           (__bridge id)kSecClassKey, (__bridge id)kSecClass,
-                           alias, (__bridge id)kSecAttrLabel,
-                           nil];
-
+    NSDictionary *query = @{(id)kSecReturnAttributes    : @YES,
+                            (id)kSecMatchLimit          : (id)kSecMatchLimitOne,
+                            (id)kSecClass               : (id)kSecClassKey,
+                            (id)kSecAttrLabel           : alias
+                            };
     CFTypeRef result = NULL;
     OSStatus rc = SecItemCopyMatching((__bridge CFDictionaryRef)query, &result);
     NSLog(@"found key for alias %@: %@", alias, (__bridge id)result);
@@ -86,10 +82,9 @@ RCT_REMAP_METHOD(deleteKeyEntry,
                  deleteKeyEntry:(NSString*)alias
                  withResolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject)
 {
-    NSDictionary *query = [NSDictionary dictionaryWithObjectsAndKeys:
-                           (id)kSecClassKey, (__bridge id)kSecClass,
-                           alias, (__bridge id)kSecAttrLabel,
-                           nil];
+    NSDictionary *query = @{(id)kSecClass               : (id)kSecClassKey,
+                            (id)kSecAttrLabel           : alias
+                            };
 
     OSStatus rc = SecItemDelete((CFDictionaryRef)query);
     if (rc == errSecSuccess) {
@@ -183,26 +178,23 @@ RCT_REMAP_METHOD(addKeyPair,
                  addKeyPair:(NSString*)label certificateFilename:(NSString*)filename
                  withResolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock) reject)
 {
-    NSData *labelData = [label dataUsingEncoding:NSUTF8StringEncoding];
     NSDictionary *query = @{(id)kSecReturnAttributes    : @YES,
                             (id)kSecMatchLimit          : (id)kSecMatchLimitOne,
                             (id)kSecClass               : (id)kSecClassKey,
-                            (id)kSecAttrLabel           : labelData
+                            (id)kSecAttrLabel           : label
                            };
 
     CFTypeRef result = NULL;
     OSStatus rc = SecItemCopyMatching((__bridge CFDictionaryRef)query, &result);
     if (rc == errSecItemNotFound) {
-        NSMutableDictionary *privateKeyAttributes = [NSMutableDictionary dictionary];
+        NSDictionary *privateKeyAttributes = @{(id)kSecAttrIsPermanent  : @YES,
+                                               (id)kSecAttrLabel        : label
+                                               };
 
-        privateKeyAttributes[(id)kSecAttrIsPermanent] = @YES; // store in keychain
-        privateKeyAttributes[(id)kSecAttrLabel] = labelData;
-
-        NSDictionary *attributes =
-        @{ (id)kSecAttrKeyType:       (id)kSecAttrKeyTypeRSA,
-           (id)kSecAttrKeySizeInBits: RSA_KEY_SIZE,
-           (id)kSecPrivateKeyAttrs:   privateKeyAttributes
-           };
+        NSDictionary *attributes = @{ (id)kSecAttrKeyType       : (id)kSecAttrKeyTypeRSA,
+                                      (id)kSecAttrKeySizeInBits : RSA_KEY_SIZE,
+                                      (id)kSecPrivateKeyAttrs   : privateKeyAttributes
+                                      };
 
         CFErrorRef error = NULL;
         SecKeyRef privateKey = SecKeyCreateRandomKey((__bridge CFDictionaryRef)attributes, &error);
@@ -239,10 +231,9 @@ RCT_REMAP_METHOD(secureRandom,
 
 - (void)performWithPrivateKeyLabel:(NSString *)label block:(SecKeyPerformBlock)performBlock
 {
-    NSData *labelData = [label dataUsingEncoding:NSUTF8StringEncoding];
-    NSDictionary *query = @{ (id)kSecClass: (id)kSecClassKey,
-                             (id)kSecAttrLabel: labelData,
-                             (id)kSecReturnRef: @YES
+    NSDictionary *query = @{ (id)kSecClass      : (id)kSecClassKey,
+                             (id)kSecAttrLabel  : label,
+                             (id)kSecReturnRef  : @YES
                              };
 
     SecKeyRef key = NULL;
