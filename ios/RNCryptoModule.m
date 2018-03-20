@@ -149,7 +149,7 @@ RCT_REMAP_METHOD(sign,
                 NSLog(@"error: %@", err);
                 reject(@"-1", @"Signing error", err);
             } else {
-                NSString* encodedSignature = [signature base64EncodedStringWithOptions:NSDataBase64Encoding64CharacterLineLength];
+                NSString* encodedSignature = [signature base64EncodedStringWithOptions:0];
                 resolve(encodedSignature);
             }
         } else {
