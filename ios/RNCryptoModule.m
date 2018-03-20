@@ -129,6 +129,11 @@ RCT_REMAP_METHOD(sign,
                  withResolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject)
 {
     void(^signer)(SecKeyRef) = ^(SecKeyRef privateKey) {
+
+        if (privateKey == NULL) {
+            reject(@"-1", @"Signing error", nil);
+            return;
+        }
         SecKeyAlgorithm algorithm = kSecKeyAlgorithmRSASignatureMessagePKCS1v15SHA256;
 
         BOOL canSign = SecKeyIsAlgorithmSupported(privateKey,
@@ -175,25 +180,23 @@ RCT_REMAP_METHOD(getKeyAsPem,
 }
 
 RCT_REMAP_METHOD(addKeyPair,
-                 addKeyPair:(NSString*)alias certificateFilename:(NSString*)filename
+                 addKeyPair:(NSString*)label certificateFilename:(NSString*)filename
                  withResolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock) reject)
 {
-    NSDictionary *query = [NSDictionary dictionaryWithObjectsAndKeys:
-                           (__bridge id)kCFBooleanTrue, (__bridge id)kSecReturnAttributes,
-                           (__bridge id)kSecMatchLimitOne, (__bridge id)kSecMatchLimit,
-                           (__bridge id)kSecClassKey, (__bridge id)kSecClass,
-                           alias, (__bridge id)kSecAttrLabel,
-                           nil];
+    NSData *labelData = [label dataUsingEncoding:NSUTF8StringEncoding];
+    NSDictionary *query = @{(id)kSecReturnAttributes    : @YES,
+                            (id)kSecMatchLimit          : (id)kSecMatchLimitOne,
+                            (id)kSecClass               : (id)kSecClassKey,
+                            (id)kSecAttrLabel           : labelData
+                           };
 
     CFTypeRef result = NULL;
     OSStatus rc = SecItemCopyMatching((__bridge CFDictionaryRef)query, &result);
     if (rc == errSecItemNotFound) {
         NSMutableDictionary *privateKeyAttributes = [NSMutableDictionary dictionary];
 
-        NSData *aliasData = [alias dataUsingEncoding:NSUTF8StringEncoding];
-
         privateKeyAttributes[(id)kSecAttrIsPermanent] = @YES; // store in keychain
-        privateKeyAttributes[(id)kSecAttrLabel] = aliasData;
+        privateKeyAttributes[(id)kSecAttrLabel] = labelData;
 
         NSDictionary *attributes =
         @{ (id)kSecAttrKeyType:       (id)kSecAttrKeyTypeRSA,
@@ -214,7 +217,7 @@ RCT_REMAP_METHOD(addKeyPair,
             resolve(@{@"publicKeyPem": publicKeyPem});
         }
     } else {
-        reject(@"-1", [NSString stringWithFormat: @"Private key with label '%@' already exists", alias], nil);
+        reject(@"-1", [NSString stringWithFormat: @"Private key with label '%@' already exists", label], nil);
     }
 }
 
@@ -247,6 +250,7 @@ RCT_REMAP_METHOD(secureRandom,
 
     if (status != errSecSuccess) {
         NSLog(@"error accessing the key");
+        if (performBlock) { performBlock(NULL); }
     } else {
         if (performBlock) { performBlock(key); }
         if (key) { CFRelease(key); }
