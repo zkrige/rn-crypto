@@ -325,9 +325,7 @@ public class CryptoModule extends ReactContextBaseJavaModule {
             Enumeration<String> aliases = this.keyStore.aliases();
             while (aliases.hasMoreElements()) {
                 String existing_alias = aliases.nextElement();
-                if (existing_alias.equals(alias) ||
-                        existing_alias.equals("private" + alias) ||
-                        existing_alias.equals("public" + alias)) {
+                if (existing_alias.equals(alias) {
                     promise.reject(new IllegalStateException("A key with that alias already exists"));
                     return;
                 }
@@ -362,7 +360,7 @@ public class CryptoModule extends ReactContextBaseJavaModule {
             // Load certificate
             Certificate[] certChain = {this.loadCertificate(certificateFilename)};
             Log.v(LOGTAG, "load certificate");
-            this.keyStore.setKeyEntry("private" + alias, privateKey, null, certChain);
+            this.keyStore.setKeyEntry(alias, privateKey, null, certChain);
             Log.v(LOGTAG, "set key entry private");
 
             map.putString("publicKeyPem", this.toPemString(publicKey));
