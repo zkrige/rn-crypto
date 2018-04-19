@@ -325,7 +325,7 @@ public class CryptoModule extends ReactContextBaseJavaModule {
             Enumeration<String> aliases = this.keyStore.aliases();
             while (aliases.hasMoreElements()) {
                 String existing_alias = aliases.nextElement();
-                if (existing_alias.equals(alias) {
+                if (existing_alias.equals(alias)) {
                     promise.reject(new IllegalStateException("A key with that alias already exists"));
                     return;
                 }
